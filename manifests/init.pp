@@ -39,10 +39,31 @@ class motd($empty = false)
       }
     }
 
-    default: {
-      notify { $name:
-        message => "${::operatingsystem} is unsupported"
+    Solaris: {
+      # default Solaris motd only provides OS name, version and release date,
+      # therefore we opt to just include output of 'uname -snrvm' and ignore $empty
+      # to do this properly we adopt the method used in debian section of this class
+
+      $target  = '/etc/motd.tail'
+      $target2 = '/etc/motd'
+
+      file_concat { $target:
+        owner => 'root',
+        group => 'root',
+        mode  => '0444'
       }
+
+      # from /etc/rcS.d/S55bootmisc.sh on lenny
+      exec { 'update-real-motd':
+        path        => '/bin',
+        command     => "uname -snrvm > ${target2} && cat ${target} >> ${target2}",
+        subscribe   => File[$target],
+        refreshonly => true
+      }
+    }
+
+    default: {
+      fail("${::operatingsystem} is unsupported")
     }
   }
 }
